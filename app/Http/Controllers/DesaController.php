@@ -11,7 +11,16 @@ class DesaController extends Controller
      */
     public function index()
     {
-        //
+        $desa = \Laravolt\Indonesia\Facade::paginateVillages($numRows = 15);
+
+        $res = [
+            'status' => 'success',
+            'data' => [
+                'desa' => $desa,
+            ],
+        ];
+
+        return response()->json($res,200);
     }
 
     /**
@@ -27,7 +36,28 @@ class DesaController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $httpcode = 200;
+        $status = 'success';
+        $data = '';
+
+        $desa = \Laravolt\Indonesia\Facade::findVillage($id);
+
+        if($desa == null) {
+            $status = 'fail';
+            $data = 'desa with id: '.$id.' is not found';
+            $httpcode = 404;
+        } else {
+            $data = $desa;
+        }
+
+        $res = [
+            'status' => $status,
+            'data' => [
+                'desa' => $data,
+            ],
+        ];
+
+        return response()->json($res,$httpcode);
     }
 
     /**
