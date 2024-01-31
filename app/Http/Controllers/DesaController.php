@@ -203,6 +203,38 @@ class DesaController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $village = \Laravolt\Indonesia\Models\Village::find($id);
+
+        if($village == null) {
+            $res = [
+                'status' => 'fail',
+                'data' => [
+                    'desa' => 'Desa Not Found',
+                ],
+            ];
+
+            return response()->json($res, 404);
+        }
+
+        if($village->delete()){
+            $res = [
+                'status' => 'success',
+                'data' => [
+                    'desa' => '',
+                ],
+            ];
+
+            return response()->json($res, 404);
+        }else {
+            $res = [
+                'status' => 'fail',
+                'data' => [
+                    'desa' => 'Desa cannot be deleted',
+                ],
+            ];
+
+            return response()->json($res, 404);
+        }
+
     }
 }
