@@ -3,6 +3,13 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Http\Requests\StoreDesaRequest;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Validator;
+
+
+// this JSON response following the JSend standard https://github.com/omniti-labs/jsend
+// with additional http status code following https://api.stackexchange.com/docs/error-handling
 
 class DesaController extends Controller
 {
@@ -28,7 +35,66 @@ class DesaController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        if(!$request->isJson()){
+            $res = [
+                'status' => 'error',
+                'message' => 'request body is not JSON'
+            ];
+
+            return response()->json($res,400);
+        }
+
+        $villages_table = config('laravolt.indonesia.table_prefix').'villages';
+
+        $rules = [
+            'code'          => ['required', 'string', 'unique:'.$villages_table, 'size:10'],
+            'district_code' => ['required', 'string', 'max:7'],
+            'name'          => ['required', 'string', 'max:255'],
+            'lat'           => ['string'],
+            'long'          => ['string'],
+            'pos'           => ['string', 'size:5'],
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if($validator->fails()){
+            return response()->json($validator->errors(),400);
+        }
+        $validated = $validator->validated();
+
+        $meta = [
+            'lat' => $validated['lat'],
+            'long' => $validated['long'],
+            'pos' => $validated['pos'],
+        ];
+
+        $village = new \Laravolt\Indonesia\Models\Village;
+        $village->code = $validated['code'];
+        $village->district_code = $validated['district_code'];
+        $village->name = $validated['name'];
+        $village->meta = json_encode($meta);
+        $village->created_at = Carbon::now();
+        $village->updated_at = Carbon::now();
+
+        if($village->save()){
+            $res = [
+                'status' => 'success',
+                'data' => [
+                    'desa' => $village,
+                ],
+            ];
+
+            return response()->json($res, 201);
+        }else {
+            $res = [
+                'status' => 'fail',
+                'data' => [
+                    'desa' => 'Failed to save data',
+                ],
+            ];
+
+            return response()->json($res, 400);
+        }
     }
 
     /**
@@ -38,16 +104,13 @@ class DesaController extends Controller
     {
         $httpcode = 200;
         $status = 'success';
-        $data = '';
 
-        $desa = \Laravolt\Indonesia\Facade::findVillage($id);
+        $data = \Laravolt\Indonesia\Facade::findVillage($id);
 
-        if($desa == null) {
+        if($data == null) {
             $status = 'fail';
             $data = 'desa with id: '.$id.' is not found';
             $httpcode = 404;
-        } else {
-            $data = $desa;
         }
 
         $res = [
