@@ -50,9 +50,9 @@ class DesaController extends Controller
             'code'          => ['required', 'string', 'unique:'.$villages_table, 'size:10'],
             'district_code' => ['required', 'string', 'max:7'],
             'name'          => ['required', 'string', 'max:255'],
-            'lat'           => ['string'],
-            'long'          => ['string'],
-            'pos'           => ['string', 'size:5'],
+            'lat'           => ['nullable', 'string'],
+            'long'          => ['nullable', 'string'],
+            'pos'           => ['nullable', 'string', 'size:5'],
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -128,7 +128,74 @@ class DesaController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        if(!$request->isJson()){
+            $res = [
+                'status' => 'error',
+                'message' => 'request body is not JSON'
+            ];
+
+            return response()->json($res,400);
+        }
+
+        $rules = [
+            'code'          => ['nullable', 'string', 'size:10'],
+            'district_code' => ['nullable', 'string', 'max:7'],
+            'name'          => ['nullable', 'string', 'max:255'],
+            'lat'           => ['nullable', 'string'],
+            'long'          => ['nullable', 'string'],
+            'pos'           => ['nullable', 'string', 'size:5'],
+        ];
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if($validator->fails()){
+            return response()->json($validator->errors(),400);
+        }
+        $validated = $validator->validated();
+
+        $meta = [
+            'lat' => $validated['lat'],
+            'long' => $validated['long'],
+            'pos' => $validated['pos'],
+        ];
+
+        $village = \Laravolt\Indonesia\Models\Village::find($id);
+
+        if($village == null) {
+            $res = [
+                'status' => 'fail',
+                'data' => [
+                    'desa' => 'Desa Not Found',
+                ],
+            ];
+
+            return response()->json($res, 404);
+        }
+
+        $village->fill($validator->safe()->except(['lat', 'long', 'pos']));
+        $village->meta = json_encode($meta);
+        $village->created_at = Carbon::now();
+        $village->updated_at = Carbon::now();
+
+        if($village->update()){
+            $res = [
+                'status' => 'success',
+                'data' => [
+                    'desa' => $village,
+                ],
+            ];
+
+            return response()->json($res, 200);
+        }else {
+            $res = [
+                'status' => 'fail',
+                'data' => [
+                    'desa' => 'Failed to save data',
+                ],
+            ];
+
+            return response()->json($res, 400);
+        }
     }
 
     /**
