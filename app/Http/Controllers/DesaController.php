@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StoreDesaRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\Response;
 
 
 // this JSON response following the JSend standard https://github.com/omniti-labs/jsend
@@ -18,16 +19,28 @@ class DesaController extends Controller
      */
     public function index()
     {
-        $desa = \Laravolt\Indonesia\Facade::paginateVillages($numRows = 15);
+        try {
+            $desa = \Laravolt\Indonesia\Facade::paginateVillages($numRows = 15);
 
-        $res = [
-            'status' => 'success',
-            'data' => [
-                'desa' => $desa,
-            ],
-        ];
+            $res = [
+                'status' => 'success',
+                'code' => Response::HTTP_OK,
+                'data' => [
+                    'desa' => $desa,
+                ],
+            ];
 
-        return response()->json($res,200);
+            return response()->json($res,Response::HTTP_OK);
+
+        } catch (\Throwable $th) {
+            $res = [
+                'status' => 'error',
+                'code' => Response::HTTP_BAD_REQUEST,
+                'message' => $th->getMessage()
+            ];
+
+            return response()->json($res,Response::HTTP_BAD_REQUEST);
+        }
     }
 
     /**
@@ -38,10 +51,11 @@ class DesaController extends Controller
         if(!$request->isJson()){
             $res = [
                 'status' => 'error',
-                'message' => 'request body is not JSON'
+                'code' => Response::HTTP_BAD_REQUEST,
+                'message' => 'Request body is not JSON'
             ];
 
-            return response()->json($res,400);
+            return response()->json($res,Response::HTTP_BAD_REQUEST);
         }
 
         $villages_table = config('laravolt.indonesia.table_prefix').'villages';
@@ -58,43 +72,66 @@ class DesaController extends Controller
         $validator = Validator::make($request->all(), $rules);
 
         if($validator->fails()){
-            return response()->json($validator->errors(),400);
-        }
-        $validated = $validator->validated();
+            $res = [
+                'status' => 'fail',
+                'code' => Response::HTTP_BAD_REQUEST,
+                'data' => [
+                    'validation' => $validator->errors(),
+                ],
+            ];
 
+            return response()->json($res,Response::HTTP_BAD_REQUEST);
+        }
+
+
+        $validated = $validator->validated();
         $meta = [
             'lat' => $validated['lat'],
             'long' => $validated['long'],
             'pos' => $validated['pos'],
         ];
 
-        $village = new \Laravolt\Indonesia\Models\Village;
-        $village->code = $validated['code'];
-        $village->district_code = $validated['district_code'];
-        $village->name = $validated['name'];
-        $village->meta = json_encode($meta);
-        $village->created_at = Carbon::now();
-        $village->updated_at = Carbon::now();
+        try {
+            $village = new \Laravolt\Indonesia\Models\Village;
+            $village->code = $validated['code'];
+            $village->district_code = $validated['district_code'];
+            $village->name = $validated['name'];
+            $village->meta = json_encode($meta);
+            $village->created_at = Carbon::now();
+            $village->updated_at = Carbon::now();
 
-        if($village->save()){
+            if($village->save()){
+                $res = [
+                    'status' => 'success',
+                    'code' => Response::HTTP_CREATED,
+                    'data' => [
+                        'desa' => $village,
+                    ],
+                ];
+
+                return response()->json($res, Response::HTTP_CREATED);
+            }else {
+                $res = [
+                    'status' => 'fail',
+                    'code' => Response::HTTP_BAD_REQUEST,
+                    'data' => [
+                        'desa' => 'Failed to save data',
+                    ],
+                ];
+
+                return response()->json($res, Response::HTTP_BAD_REQUEST);
+            }
+        } catch (\Throwable $th) {
             $res = [
-                'status' => 'success',
-                'data' => [
-                    'desa' => $village,
-                ],
+                'status' => 'error',
+                'code' => Response::HTTP_BAD_REQUEST,
+                'message' => $th->getMessage()
             ];
 
-            return response()->json($res, 201);
-        }else {
-            $res = [
-                'status' => 'fail',
-                'data' => [
-                    'desa' => 'Failed to save data',
-                ],
-            ];
-
-            return response()->json($res, 400);
+            return response()->json($res,Response::HTTP_BAD_REQUEST);
         }
+
+
     }
 
     /**
@@ -102,25 +139,40 @@ class DesaController extends Controller
      */
     public function show(string $id)
     {
-        $httpcode = 200;
-        $status = 'success';
+        try {
+            $desa = \Laravolt\Indonesia\Facade::findVillage($id);
 
-        $data = \Laravolt\Indonesia\Facade::findVillage($id);
+            if($desa != null) {
+                $res = [
+                    'status' => 'success',
+                    'code' => Response::HTTP_OK,
+                    'data' => [
+                        'desa' => $desa,
+                    ],
+                ];
 
-        if($data == null) {
-            $status = 'fail';
-            $data = 'desa with id: '.$id.' is not found';
-            $httpcode = 404;
+                return response()->json($res,Response::HTTP_OK);
+            } else {
+                $res = [
+                    'status' => 'fail',
+                    'code' => Response::HTTP_NOT_FOUND,
+                    'data' => [
+                        'desa' => 'Desa not found!'
+                    ],
+                ];
+
+                return response()->json($res, Response::HTTP_NOT_FOUND);
+            }
+
+        } catch (\Throwable $th) {
+            $res = [
+                'status' => 'error',
+                'code' => Response::HTTP_BAD_REQUEST,
+                'message' => $th->getMessage()
+            ];
+
+            return response()->json($res,Response::HTTP_BAD_REQUEST);
         }
-
-        $res = [
-            'status' => $status,
-            'data' => [
-                'desa' => $data,
-            ],
-        ];
-
-        return response()->json($res,$httpcode);
     }
 
     /**
@@ -131,10 +183,11 @@ class DesaController extends Controller
         if(!$request->isJson()){
             $res = [
                 'status' => 'error',
+                'code' => Response::HTTP_BAD_REQUEST,
                 'message' => 'request body is not JSON'
             ];
 
-            return response()->json($res,400);
+            return response()->json($res,Response::HTTP_BAD_REQUEST);
         }
 
         $rules = [
@@ -149,8 +202,17 @@ class DesaController extends Controller
         $validator = Validator::make($request->all(), $rules);
 
         if($validator->fails()){
-            return response()->json($validator->errors(),400);
+            $res = [
+                'status' => 'fail',
+                'code' => Response::HTTP_BAD_REQUEST,
+                'data' => [
+                    'validation' => $validator->errors(),
+                ],
+            ];
+
+            return response()->json($res,Response::HTTP_BAD_REQUEST);
         }
+
         $validated = $validator->validated();
 
         $meta = [
@@ -159,42 +221,55 @@ class DesaController extends Controller
             'pos' => $validated['pos'],
         ];
 
-        $village = \Laravolt\Indonesia\Models\Village::find($id);
+        try {
+            $village = \Laravolt\Indonesia\Models\Village::find($id);
 
-        if($village == null) {
+            if($village != null){
+                $village->fill($validator->safe()->except(['lat', 'long', 'pos']));
+                $village->meta = json_encode($meta);
+                $village->created_at = Carbon::now();
+                $village->updated_at = Carbon::now();
+
+                if($village->update()){
+                    $res = [
+                        'status' => 'success',
+                        'code' => Response::HTTP_OK,
+                        'data' => [
+                            'desa' => $village,
+                        ],
+                    ];
+
+                    return response()->json($res,Response::HTTP_OK);
+                }else {
+                    $res = [
+                        'status' => 'fail',
+                        'code' => Response::HTTP_BAD_REQUEST,
+                        'data' => [
+                            'desa' => 'Failed to save data',
+                        ],
+                    ];
+
+                    return response()->json($res, Response::HTTP_BAD_REQUEST);
+                }
+            }else {
+                $res = [
+                    'status' => 'fail',
+                    'code' => Response::HTTP_NOT_FOUND,
+                    'data' => [
+                        'desa' => 'Desa not found!'
+                    ],
+                ];
+
+                return response()->json($res, Response::HTTP_NOT_FOUND);
+            }
+        } catch (\Throwable $th) {
             $res = [
-                'status' => 'fail',
-                'data' => [
-                    'desa' => 'Desa Not Found',
-                ],
+                'status' => 'error',
+                'code' => Response::HTTP_BAD_REQUEST,
+                'message' => $th->getMessage()
             ];
 
-            return response()->json($res, 404);
-        }
-
-        $village->fill($validator->safe()->except(['lat', 'long', 'pos']));
-        $village->meta = json_encode($meta);
-        $village->created_at = Carbon::now();
-        $village->updated_at = Carbon::now();
-
-        if($village->update()){
-            $res = [
-                'status' => 'success',
-                'data' => [
-                    'desa' => $village,
-                ],
-            ];
-
-            return response()->json($res, 200);
-        }else {
-            $res = [
-                'status' => 'fail',
-                'data' => [
-                    'desa' => 'Failed to save data',
-                ],
-            ];
-
-            return response()->json($res, 400);
+            return response()->json($res,Response::HTTP_BAD_REQUEST);
         }
     }
 
@@ -203,38 +278,50 @@ class DesaController extends Controller
      */
     public function destroy(string $id)
     {
-        $village = \Laravolt\Indonesia\Models\Village::find($id);
 
-        if($village == null) {
+        try {
+            $village = \Laravolt\Indonesia\Models\Village::find($id);
+
+            if($village != null) {
+                try {
+                    $village->delete();
+                    $res = [
+                        'status' => 'success',
+                        'code' => Response::HTTP_OK,
+                        'data' => [
+                            'desa' => ''
+                        ],
+                    ];
+
+                    return response()->json($res, Response::HTTP_OK);
+                } catch (\Throwable $th) {
+                    $res = [
+                        'status' => 'error',
+                        'code' => Response::HTTP_BAD_REQUEST,
+                        'message' => $th->getMessage()
+                    ];
+
+                    return response()->json($res,Response::HTTP_BAD_REQUEST);
+                }
+            }else{
+                $res = [
+                    'status' => 'fail',
+                    'code' => Response::HTTP_NOT_FOUND,
+                    'data' => [
+                        'desa' => 'Desa not found!'
+                    ],
+                ];
+
+                return response()->json($res, Response::HTTP_NOT_FOUND);
+            }
+        } catch (\Throwable $th) {
             $res = [
-                'status' => 'fail',
-                'data' => [
-                    'desa' => 'Desa Not Found',
-                ],
+                'status' => 'error',
+                'code' => Response::HTTP_BAD_REQUEST,
+                'message' => $th->getMessage()
             ];
 
-            return response()->json($res, 404);
+            return response()->json($res,Response::HTTP_BAD_REQUEST);
         }
-
-        if($village->delete()){
-            $res = [
-                'status' => 'success',
-                'data' => [
-                    'desa' => '',
-                ],
-            ];
-
-            return response()->json($res, 404);
-        }else {
-            $res = [
-                'status' => 'fail',
-                'data' => [
-                    'desa' => 'Desa cannot be deleted',
-                ],
-            ];
-
-            return response()->json($res, 404);
-        }
-
     }
 }
