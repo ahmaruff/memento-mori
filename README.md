@@ -68,11 +68,15 @@ All responses should be in JSON format. following [JSend Standard](https://githu
     "code" : "HTTP_STATUS_CODE",
     "message" : "custom message",
     "data" : {
-        // data goes here
+        "data" : "data goes here"
     }
 }
 
 ```
+
+## Postman Collection
+
+[Postman collection](https://api.postman.com/collections/27401766-d1b5fb19-b9bc-4fc8-931c-c8663e0fa327?access_key=PMAT-01HNGY0ATPMJYDSYBWYX6FS9H4)
 
 ## Author
 
