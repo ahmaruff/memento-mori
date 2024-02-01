@@ -76,7 +76,7 @@ All responses should be in JSON format. following [JSend Standard](https://githu
 
 ## Postman Collection
 
-[Postman collection](https://api.postman.com/collections/27401766-d1b5fb19-b9bc-4fc8-931c-c8663e0fa327?access_key=PMAT-01HNGY0ATPMJYDSYBWYX6FS9H4)
+[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://god.gw.postman.com/run-collection/27401766-d1b5fb19-b9bc-4fc8-931c-c8663e0fa327?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D27401766-d1b5fb19-b9bc-4fc8-931c-c8663e0fa327%26entityType%3Dcollection%26workspaceId%3Dc9fa6e11-41c9-4e55-b66b-bfba04df19e7)
 
 ## Author
 
